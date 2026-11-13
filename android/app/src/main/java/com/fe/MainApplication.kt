@@ -2,6 +2,7 @@ package com.fe
 
 import android.app.Application
 import android.content.Intent
+import android.util.Log
 import com.facebook.react.PackageList
 import com.facebook.react.ReactApplication
 import com.facebook.react.ReactHost
@@ -11,22 +12,21 @@ import com.fe.ota.OtaService
 import com.google.gson.Gson
 
 class MainApplication : Application(), ReactApplication {
-
-
     override val reactHost: ReactHost by lazy {
         val gson = Gson()
         val otaService = OtaService(this, gson)
 
         otaService.getBundle()
-        val bundleFile = otaService.getBundleFilePath()
+        val bundleFilePath = otaService.getBundleFilePath()
+        Log.d("found bundle file", "${bundleFilePath}");
 
         getDefaultReactHost(
             context = applicationContext,
             packageList = PackageList(this).packages.apply {},
-            jsBundleFilePath = bundleFile,
+            jsBundleFilePath = bundleFilePath,
+            useDevSupport = false,
             exceptionHandler = { e ->
-                System.out.print(e);
-                otaService.handleFail();
+                otaService.handleFail(e);
                 restartApp();
             }
         )

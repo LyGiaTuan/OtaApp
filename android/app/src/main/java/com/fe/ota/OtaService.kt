@@ -5,6 +5,7 @@ import android.util.Log
 import com.google.gson.Gson
 import okhttp3.Call
 import okhttp3.Callback
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -34,37 +35,56 @@ class OtaService(val context: Context, val gson: Gson) {
 
     fun getBundleFilePath(): String? {
         val canUseCustomBundle = prefs.getBoolean("canUseCustomBundle", false)
+        Log.d("Load bundle file path", "${canUseCustomBundle}")
         if (canUseCustomBundle) {
             val bundleFile = File(context.filesDir, "/index.android.bundle")
+            Log.d("Is bundle exist", "${bundleFile.exists()} ${bundleFile.length()}")
             return if (bundleFile.exists()) bundleFile.absolutePath else null;
         }
         return null;
     }
 
-    private val client: OkHttpClient = OkHttpClient.Builder().connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS).writeTimeout(30, TimeUnit.SECONDS).build()
-
+    private val client: OkHttpClient = OkHttpClient.Builder().connectTimeout(300, TimeUnit.SECONDS)
+        .readTimeout(300, TimeUnit.SECONDS).writeTimeout(300, TimeUnit.SECONDS).build()
 
     fun getBundle(
     ) {
-        val nativeVersion = "2.0.0"
-        val appId = "5"
+        val nativeVersion = "1.0.0"
+        val appId = "6"
         val deviceId = "1";
 
-        val getBundleRequest = GetBundleRequest(nativeVersion, appId, deviceId)
-        val body = gson.toJson(getBundleRequest)
-            .toRequestBody("application/json; charset=utf-8".toMediaType())
-        val request = Request.Builder().url("http://192.168.1.48:8000/bundle").post(body).build()
+        val url = "http://192.168.0.102:3000/bundle".toHttpUrl().newBuilder()
+            .addQueryParameter("nativeVersion", nativeVersion)
+            .addQueryParameter("appId", appId)
+            .addQueryParameter("deviceId", deviceId)   // tự encode
+            .build()
+
+        val request = Request.Builder().url(url).get().build()
 
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
-                Log.e("gg HTTP", "Lỗi: ${e.message}")
+                Log.e("gg HTTP", "Lỗi gọi ${call.request().url}", e)
+
+                // In chuỗi nguyên nhân
+                var c: Throwable? = e
+                while (c != null) {
+                    Log.e("gg HTTP", "  -> ${c.javaClass.name}: ${c.message}")
+                    c = c.cause
+                }
+                // OkHttp thử nhiều địa chỉ (IPv4/IPv6...) và gắn lỗi của từng lần thử vào suppressed
+                e.suppressed.forEach {
+                    Log.e(
+                        "gg HTTP",
+                        "  suppressed: ${it.javaClass.name}: ${it.message}"
+                    )
+                }
             }
 
             override fun onResponse(call: Call, response: Response) {
                 response.use {
-                    prefs.edit().putBoolean("canUseCustomBundle", true).commit();
                     if (response.code == 200) {
+                        Log.d("Get bundle", "Success")
+                        prefs.edit().putBoolean("canUseCustomBundle", true).commit();
                         insertBundleFile(response.body!!.byteStream())
                     }
                 }
@@ -72,7 +92,8 @@ class OtaService(val context: Context, val gson: Gson) {
         })
     }
 
-    fun handleFail() {
+    fun handleFail(e: Exception) {
+        Log.d("Fail load bundle", "${e.message}")
         prefs.edit().putBoolean("canUseCustomBundle", false).commit();
     }
 
