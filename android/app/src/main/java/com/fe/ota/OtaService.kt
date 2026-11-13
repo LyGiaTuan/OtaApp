@@ -50,7 +50,7 @@ class OtaService(val context: Context, val gson: Gson) {
     fun getBundle(
     ) {
         val nativeVersion = "1.0.0"
-        val appId = "6"
+        val appId = "7"
         val deviceId = "1";
 
         val url = "http://192.168.0.102:3000/bundle".toHttpUrl().newBuilder()
