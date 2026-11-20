@@ -31,7 +31,7 @@ class MainApplication : Application(), ReactApplication {
             useDevSupport = false,
             exceptionHandler = { e ->
                 otaService.handleFail(e)
-//                restartApp();
+                restartApp();
             }
         )
     }

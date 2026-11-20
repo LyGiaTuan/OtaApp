@@ -31,7 +31,7 @@ class OtaService(val context: Context, val gson: Gson) {
                 }
             }
         }
-        prefs.edit().putBoolean("newBundle", true).commit();
+        prefs.edit().putBoolean("newBundle", true).putBoolean("canUseCustomBundle", true).commit();
     }
 
     fun getBundleFilePath(): String? {
@@ -40,13 +40,10 @@ class OtaService(val context: Context, val gson: Gson) {
         if (newBundle) {
             val file = File(context.filesDir, "/index.android.bundle.pending");
             file.renameTo(bundleFile);
+            prefs.edit().putBoolean("newBundle", false).commit();
         }
         val canUseCustomBundle = prefs.getBoolean("canUseCustomBundle", false)
-        if (canUseCustomBundle) {
-            Log.d("Is bundle exist", "${bundleFile.exists()} ${bundleFile.length()}")
-            return if (bundleFile.exists()) bundleFile.absolutePath else null;
-        }
-        return null;
+        return if (canUseCustomBundle && bundleFile.exists()) bundleFile.absolutePath else null;
     }
 
     private val client: OkHttpClient = OkHttpClient.Builder().connectTimeout(300, TimeUnit.SECONDS)
@@ -88,8 +85,6 @@ class OtaService(val context: Context, val gson: Gson) {
             override fun onResponse(call: Call, response: Response) {
                 response.use {
                     if (response.code == 200) {
-                        Log.d("Get bundle", "Success")
-                        prefs.edit().putBoolean("canUseCustomBundle", true).commit();
                         insertBundleFile(response.body!!.byteStream())
                     }
                 }
