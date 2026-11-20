@@ -16,12 +16,12 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.locks.ReentrantLock
 
 class OtaService(val context: Context, val gson: Gson) {
     private val prefs = context.getSharedPreferences("OTA_SERVICE", Context.MODE_PRIVATE)
-
     private fun insertBundleFile(bundleByteStream: InputStream) {
-        val file = File(context.filesDir, "/index.android.bundle");
+        val file = File(context.filesDir, "/index.android.bundle.pending");
         bundleByteStream.use { `in` ->
             FileOutputStream(file).use { out ->
                 val buffer = ByteArray(8192)
@@ -31,13 +31,18 @@ class OtaService(val context: Context, val gson: Gson) {
                 }
             }
         }
+        prefs.edit().putBoolean("newBundle", true).commit();
     }
 
     fun getBundleFilePath(): String? {
+        val newBundle = prefs.getBoolean("newBundle", false);
+        val bundleFile = File(context.filesDir, "/index.android.bundle")
+        if (newBundle) {
+            val file = File(context.filesDir, "/index.android.bundle.pending");
+            file.renameTo(bundleFile);
+        }
         val canUseCustomBundle = prefs.getBoolean("canUseCustomBundle", false)
-        Log.d("Load bundle file path", "${canUseCustomBundle}")
         if (canUseCustomBundle) {
-            val bundleFile = File(context.filesDir, "/index.android.bundle")
             Log.d("Is bundle exist", "${bundleFile.exists()} ${bundleFile.length()}")
             return if (bundleFile.exists()) bundleFile.absolutePath else null;
         }
@@ -53,7 +58,7 @@ class OtaService(val context: Context, val gson: Gson) {
         val appId = "7"
         val deviceId = "1";
 
-        val url = "http://192.168.0.102:3000/bundle".toHttpUrl().newBuilder()
+        val url = "http://192.168.5.83:3000/bundle".toHttpUrl().newBuilder()
             .addQueryParameter("nativeVersion", nativeVersion)
             .addQueryParameter("appId", appId)
             .addQueryParameter("deviceId", deviceId)   // tự encode
@@ -95,9 +100,5 @@ class OtaService(val context: Context, val gson: Gson) {
     fun handleFail(e: Exception) {
         Log.d("Fail load bundle", "${e.message}")
         prefs.edit().putBoolean("canUseCustomBundle", false).commit();
-    }
-
-    class GetBundleRequest(val nativeVersion: String, val appId: String, val deviceId: String) {
-
     }
 }

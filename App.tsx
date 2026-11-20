@@ -16,7 +16,7 @@ function App() {
 
   return (
     <SafeAreaProvider>
-      <Text>gggg</Text>
+      <Text>gggg goosdfo</Text>
     </SafeAreaProvider>
   );
 }

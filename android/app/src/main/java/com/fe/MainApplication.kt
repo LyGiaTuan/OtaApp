@@ -6,19 +6,23 @@ import android.util.Log
 import com.facebook.react.PackageList
 import com.facebook.react.ReactApplication
 import com.facebook.react.ReactHost
+import com.facebook.react.ReactInstanceEventListener
 import com.facebook.react.ReactNativeApplicationEntryPoint.loadReactNative
+import com.facebook.react.bridge.ReactContext
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import com.fe.ota.OtaService
 import com.google.gson.Gson
+import java.io.File
 
 class MainApplication : Application(), ReactApplication {
-    override val reactHost: ReactHost by lazy {
-        val gson = Gson()
-        val otaService = OtaService(this, gson)
 
-        otaService.getBundle()
+    val gson = Gson()
+    val otaService by lazy { OtaService(this, gson) };
+
+    override val reactHost: ReactHost by lazy {
         val bundleFilePath = otaService.getBundleFilePath()
         Log.d("found bundle file", "${bundleFilePath}");
+        otaService.getBundle()
 
         getDefaultReactHost(
             context = applicationContext,
@@ -26,11 +30,12 @@ class MainApplication : Application(), ReactApplication {
             jsBundleFilePath = bundleFilePath,
             useDevSupport = false,
             exceptionHandler = { e ->
-                otaService.handleFail(e);
-                restartApp();
+                otaService.handleFail(e)
+//                restartApp();
             }
         )
     }
+
 
     private fun restartApp() {
         val intent = packageManager.getLaunchIntentForPackage(packageName)!!
@@ -41,6 +46,6 @@ class MainApplication : Application(), ReactApplication {
 
     override fun onCreate() {
         super.onCreate()
-        loadReactNative(this)
+        loadReactNative(this);
     }
 }
